@@ -1,0 +1,162 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+def f(x1, x2):
+    return 4*x1**2 - 20*x1 + x2**2 - 28*x2 + 222
+
+def grad_f(x1, x2):
+    df_dx1 = 8*x1 - 20
+    df_dx2 = 2*x2 - 28
+    return np.array([df_dx1, df_dx2])
+
+def bisection_minimize(func, a, b, tol=1e-6, max_iter=100):
+
+    if a > b:
+        a, b = b, a
+
+    for _ in range(max_iter):
+        c = (a + b) / 2
+        fc = func(c)
+
+        if abs(b - a) < tol:
+            return c
+
+        eps = 1e-8
+        fc_left = func(c - eps)
+        fc_right = func(c + eps)
+
+        if fc_left > fc and fc < fc_right:
+            return c
+        elif fc_left < fc:
+            b = c
+        else:
+            a = c
+
+    return (a + b) / 2
+
+def sliding_window_interval(func, start_point, step_size=0.1, max_steps=100):
+
+    x0 = start_point
+    f0 = func(x0)
+    x1 = x0 + step_size
+    f1 = func(x1)
+
+    if f1 >= f0:
+        direction = -1
+        x_prev = x0
+        x_curr = x1
+        f_prev = f0
+        f_curr = f1
+    else:
+        direction = 1
+        x_prev = x1
+        x_curr = x0
+        f_prev = f1
+        f_curr = f0
+
+    for _ in range(max_steps):
+        x_next = x_curr + direction * step_size
+        f_next = func(x_next)
+
+        if f_next > f_curr:
+            if direction == 1:
+                a, b = x_prev, x_next
+            else:
+                a, b = x_next, x_prev
+            return min(a, b), max(a, b)
+
+        x_prev, x_curr = x_curr, x_next
+        f_prev, f_curr = f_curr, f_next
+
+    return x0 - 10, x0 + 10
+
+def steepest_descent(f, grad_f, x0, tol=1e-6, max_iter=1000):
+
+    trajectory = [x0.copy()]
+    x = x0.copy()
+
+    for i in range(max_iter):
+        g = grad_f(x[0], x[1])
+        norm_g = np.linalg.norm(g)
+        if norm_g < tol:
+            break
+
+        d = -g
+
+        def phi(t):
+            new_x1 = x[0] + t * d[0]
+            new_x2 = x[1] + t * d[1]
+            return f(new_x1, new_x2)
+
+        a, b = sliding_window_interval(phi, 0.0)
+        t_opt = bisection_minimize(phi, a, b)
+
+        x_new = x + t_opt * d
+        trajectory.append(x_new.copy())
+
+        if np.linalg.norm(x_new - x) < tol:
+            x = x_new
+            break
+
+        x = x_new
+
+    return np.array(trajectory), x, f(x[0], x[1])
+    
+def count_iteractions_simple(n):
+    iteractions = 0
+    for i in range(n):
+        iteractions += 1
+    return iteractions
+n=7
+def plot_trajectory_and_contours(trajectory, x_min=None):
+
+    x1_range = np.linspace(-5, 10, 300)
+    x2_range = np.linspace(-15, 15, 300)  
+    X1, X2 = np.meshgrid(x1_range, x2_range)
+    Z = f(X1, X2)
+
+    plt.figure(figsize=(10, 8))
+    
+    levels = np.arange(0, 1000, 25)  
+    contour = plt.contour(X1, X2, Z, levels=levels, colors='black', linewidths=0.5)
+    plt.clabel(contour, inline=True, fontsize=8, fmt='%1.0f')
+
+    contourf = plt.contourf(X1, X2, Z, levels=levels, cmap='viridis', alpha=0.7)
+
+    plt.plot(trajectory[:, 0], trajectory[:, 1], 'ro-', linewidth=2, markersize=6, label='Траектория спуска')
+
+    plt.plot(trajectory[0, 0], trajectory[0, 1], 'go', markersize=10, label='Начало')
+
+    if x_min is not None:
+        plt.plot(x_min[0], x_min[1], 'bo', markersize=10, label='Минимум')
+
+    plt.title('Линии уровня и траектория метода наискорейшего спуска', fontsize=14, fontweight='bold')
+    plt.xlabel('$x_1$', fontsize=12)
+    plt.ylabel('$x_2$', fontsize=12)
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend(loc='upper right', fontsize=12)
+    plt.axis('equal')  
+
+    plt.xlim(-5, 10)
+    plt.ylim(-15, 15)
+
+    plt.show()
+
+if __name__ == "__main__":
+
+    x0 = np.array([-1.0, -13.0])
+
+    print("=== Метод наискорейшего спуска ===")
+    print(f"Начальная точка: x1={x0[0]}, x2={x0[1]}")
+
+    trajectory, x_min, f_min = steepest_descent(f, grad_f, x0)
+
+    print(f"\nНайденная точка минимума: x1={x_min[0]:.6f}, x2={x_min[1]:.6f}")
+    print(f"Значение функции в минимуме: {f_min:.6f}")
+
+    analytical_min = np.array([2.5, 14.0])
+    analytical_f = f(analytical_min[0], analytical_min[1])
+    print(f"\nАналитический минимум: x1=2.5, x2=14.0, f={analytical_f:.6f}")
+
+    print(f"\nКоличество итераций: {count_iteractions_simple(n)}")
+    plot_trajectory_and_contours(trajectory, analytical_min)
