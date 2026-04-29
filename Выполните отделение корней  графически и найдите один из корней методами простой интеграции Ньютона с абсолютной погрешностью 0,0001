@@ -1,0 +1,67 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def f(x):
+    return x - np.cos(x) - 1.7
+
+def df(x):
+    return 1 + np.sin(x)  
+
+def phi(x):
+    return np.cos(x) + 1.7
+    
+x_vals = np.linspace(0, 3, 400)
+y_vals = f(x_vals)
+
+plt.figure(figsize=(8, 5))
+plt.plot(x_vals, y_vals)
+plt.title('График функции для отделения корня')
+plt.xlabel('x')
+plt.ylabel('f(x)')
+plt.legend()
+plt.show()
+
+print(" График построен. Корень находится примерно в интервале [2.0, 2.5]")
+
+def simple_iteration(phi, x0, tol=1e-4, max_iter=10000):
+    x = x0
+    for i in range(max_iter):
+        x_new = phi(x)
+        if abs(x_new - x) < tol:
+            print(f" Метод простой итерации: корень ≈ {x_new:.6f}, итераций: {i+1}")
+            return x_new
+        x = x_new
+    raise ValueError("Метод не сошелся за максимальное число итераций")
+
+def newton_method(f, df, x0, tol=1e-4, max_iter=10000):
+    x = x0
+    for i in range(max_iter):
+        fx = f(x)
+        dfx = df(x)
+        if abs(dfx) < 1e-12:
+            raise ValueError("Производная близка к нулю")
+        x_new = x - fx / dfx
+        if abs(x_new - x) < tol:
+            print(f" Метод Ньютона: корень ≈ {x_new:.6f}, итераций: {i+1}")
+            return x_new
+        x = x_new
+    raise ValueError("Метод Ньютона не сошелся")
+
+print("\n--- Метод простой итерации ---")
+root_si = simple_iteration(phi, x0=2.2)
+
+print("\n--- Метод Ньютона ---")
+root_newton = newton_method(f, df, x0=2.2)
+
+print("\n Проверка подстановкой в уравнение x - cos(x) = 1.7:")
+
+def check_solution(x, method_name):
+    lhs = x - np.cos(x)
+    error = abs(lhs - 1.7)
+    print(f"{method_name}:")
+    print(f"  x = {x:.8f}")
+    print(f"  x - cos(x) = {lhs:.8f}")
+    print()
+
+check_solution(root_si, "Метод простой итерации")
+check_solution(root_newton, "Метод Ньютона")
