@@ -1,0 +1,141 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+from scipy.optimize import fsolve
+
+a, b = 0.0, 2.0
+y0 = np.array([1.0, 0.0, 0.0])
+
+def f(x, Y):
+    y1, y2, y3 = Y
+    return np.array([
+        y2,
+        y3,
+        2*y3 - y2 + 2*y1 + np.cos(x) * np.exp(2*x)
+    ])
+
+def exact_solution(x):
+    term1 = np.exp(2*x) * (2 + np.sin(x) - np.cos(x)) / 8.0
+    term2 = (7*np.cos(x) - 3*np.sin(x)) / 8.0
+    return term1 + term2
+
+def exact_derivatives(x):
+    y = exact_solution(x)
+    dy = np.exp(2*x) * (4 + 3*np.sin(x) - np.cos(x)) / 8.0 - (7*np.sin(x) + 3*np.cos(x)) / 8.0
+    d2y = np.exp(2*x)*(8 + 7*np.sin(x) + np.cos(x))/8.0 - (7*np.cos(x) - 3*np.sin(x))/8.0
+    return y, dy, d2y
+
+def implicit_euler_fsolve(f, x_vals, y0, h, tol=1e-6):
+    n = len(y0)
+    N = len(x_vals)
+    Y = np.zeros((N, n))
+    Y[0] = y0.copy()
+    total_nfev = 0
+    total_nit = 0
+
+    for i in range(N - 1):
+        x_prev = x_vals[i]
+        x_next = x_vals[i + 1]
+        y_prev = Y[i]
+
+        def G(Y_next):
+            return Y_next - y_prev - h * f(x_next, Y_next)
+
+        y_guess = y_prev + h * f(x_prev, y_prev)
+
+        try:
+            Y_next, info, ier, _ = fsolve(G, y_guess, xtol=tol, full_output=True)
+            if ier == 1:
+                Y[i + 1] = Y_next
+                total_nfev += info.get('nfev', 0)
+                total_nit += info.get('nit', 0)
+            else:
+                Y[i + 1] = y_guess
+        except Exception:
+            Y[i + 1] = y_guess
+
+    return Y, total_nfev, total_nit
+
+h = 0.1
+N = int((b - a) / h) + 1
+x_vals = np.linspace(a, b, N)
+
+Y_imp, nfev_imp, nit_imp = implicit_euler_fsolve(f, x_vals, y0, h)
+
+y_ex, yp_ex, ypp_ex = exact_derivatives(x_vals)
+
+def f_ivp(t, Y):
+    y1, y2, y3 = Y
+    return [y2, y3, 2*y3 - y2 + 2*y1 + np.cos(t)*np.exp(2*t)]
+
+sol = solve_ivp(f_ivp, [a, b], y0, t_eval=x_vals, method='RK45', rtol=1e-6, atol=1e-9)
+Y_ivp = sol.y.T
+
+err_imp = np.max(np.abs(Y_imp[:,0] - y_ex))
+err_ivp = np.max(np.abs(Y_ivp[:,0] - y_ex))
+
+print("РЕШЕНИЕ ЗАДАЧИ КОШИ")
+print("Уравнение: y''' - 2y'' + y' - 2y = cos(x)·e²ˣ")
+print(f"Начальные условия: y(0)=1, y'(0)=0, y''(0)=0")
+print(f"Интервал: [{a}, {b}]")
+print(f"Шаг: h = {h}, точек: {N}")
+print()
+print("=== СТАТИСТИКА МЕТОДОВ ===")
+print(f"[Неявный Эйлер + fsolve]")
+print(f"  • Вызовов f: {nfev_imp}")
+print(f"  • Итераций fsolve (суммарно): {nit_imp}")
+print(f"  • Шагов: {N-1}")
+print()
+print(f"[solve_ivp (RK45)]")
+print(f"  • Число шагов интегратора: {len(sol.t)}")
+print(f"  • Вызовов f: {sol.nfev}")
+print(f"  • Успешно: {sol.success}")
+print()
+print("=== ОШИБКИ (max |Δy|) ===")
+print(f"Ошибка неявной схемы: {err_imp:.2e}")
+print(f"Ошибка solve_ivp: {err_ivp:.2e}")
+print(f"Цель ≤ 0.01: {'ДА' if err_imp <= 0.01 else 'НЕТ'}")
+
+def safe_plot_diff(x, diff, label, color, ax):
+    if len(x) > 5000:
+        step = max(1, len(x) // 5000)
+        x = x[::step]
+        diff = diff[::step]
+    ax.plot(x, diff, label=label, color=color)
+    ax.grid(True)
+    ax.legend()
+
+fig, axs = plt.subplots(3, 1, figsize=(10, 9))
+fig.suptitle("Решение ОДУ: y, y', y''")
+safe_plot_diff(x_vals, Y_imp[:,0] - y_ex, "Δy", "red", axs[0])
+axs[0].set_ylabel('Δy'); axs[0].set_title("y(x)")
+safe_plot_diff(x_vals, Y_imp[:,1] - yp_ex, "Δy'", "green", axs[1])
+axs[1].set_ylabel("Δy'"); axs[1].set_title("y'(x)")
+safe_plot_diff(x_vals, Y_imp[:,2] - ypp_ex, "Δy''", "blue", axs[2])
+axs[2].set_xlabel('x'); axs[2].set_ylabel("Δy''"); axs[2].set_title("y''(x)")
+plt.tight_layout()
+plt.show()
+
+fig, axs = plt.subplots(3, 1, figsize=(10, 9))
+fig.suptitle(f'Фазовые траектории (итераций fsolve: {nit_imp}, шагов RK45: {len(sol.t)})')
+safe_plot_diff(x_vals, Y_imp[:,0] - Y_ivp[:,0], "y_imp - y_ivp", "purple", axs[0])
+axs[0].set_ylabel('Δy'); axs[0].set_title("y")
+safe_plot_diff(x_vals, y_ex - Y_ivp[:,0], "y_exact - y_ivp", "orange", axs[1])
+axs[1].set_ylabel('Δy'); axs[1].set_title("y (проверка solve_ivp)")
+safe_plot_diff(x_vals, Y_imp[:,1] - Y_ivp[:,1], "y'_imp - y'_ivp", "brown", axs[2])
+axs[2].set_xlabel('x'); axs[2].set_ylabel("Δy'"); axs[2].set_title("y'")
+plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(1, 1, figsize=(10, 4))
+ax.semilogy(x_vals, np.abs(Y_imp[:,0] - y_ex), 
+            label=f'|y_imp - y_exact| (итераций fsolve: {nit_imp})', color='red')
+ax.semilogy(x_vals, np.abs(Y_ivp[:,0] - y_ex), 
+            label=f'|y_ivp - y_exact| (вызовов f: {sol.nfev})', color='orange')
+ax.set_xlabel('x')
+ax.set_ylabel('Абсолютная ошибка |Δy|')
+ax.set_title('Ошибки решений')
+ax.grid(True, which="both", ls="--")
+ax.legend()
+plt.tight_layout()
+plt.show()
