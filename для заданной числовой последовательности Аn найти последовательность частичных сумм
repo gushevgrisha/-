@@ -1,0 +1,17 @@
+def a_n(n):
+    return 48/(5*(n**2+6*n+5))
+def S_n(n):
+    return sum(a_n(i) for i in range(0, n+1))
+print ("Частичные суммы:")
+print("S_0=" ,S_n(0))
+print("S_1=" ,S_n(1))
+print("S_5=" ,S_n(5))
+print("S_10=", S_n (10))
+    
+E=0.000001
+n=1
+pred=S_n(0)
+while S_n(n)-pred>E:
+    pred=S_n(n)
+    n+=1
+print("L=" , S_n(n))
