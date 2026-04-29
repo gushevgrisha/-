@@ -1,0 +1,50 @@
+def f(x):
+    return 3 * x**4 - 8 * x**3 + 6 * x**2 - 11
+def bisection(a, b, eps, f_eps):
+    while (b - a) > eps:
+        c = (a + b) / 2
+        if f(a) * f(c) < 0:
+            b = c
+        else:
+            a = c
+
+    root = (a + b) / 2 
+    if abs(f(root)) < f_eps:
+        return root
+    else:
+        return None  
+def chord(a, b, eps, f_eps):
+    x_prev = a
+    x_curr = b
+    while True:
+        x_next = x_curr - f(x_curr) * (x_curr - x_prev) / (f(x_curr) - f(x_prev))
+        if abs(x_next - x_curr) < eps:  
+            root = x_next  
+            if abs(f(root)) < f_eps:
+                return root
+            else:
+                return None  
+        x_prev = x_curr
+        x_curr = x_next
+a = -1.0
+b = 0.0   
+eps = 0.0001
+f_eps = 0.001  
+
+if f(a) * f(b) > 0:
+    print("На данном интервале корня нет.")
+else:
+    root_bisection = bisection(a, b, eps, f_eps)
+    root_chord = chord(a, b, eps, f_eps)
+
+    if root_bisection is not None:
+        print(f"Корень (дихотомия): {root_bisection}")
+        print(f"Проверка (дихотомия): f({root_bisection}) = {f(root_bisection)}")
+    else:
+        print("Метод дихотомии: Корень не найден с заданной точностью функции.")
+
+    if root_chord is not None:
+        print(f"Корень (хорд): {root_chord}")
+        print(f"Проверка (хорд): f({root_chord}) = {f(root_chord)}")
+    else:
+        print("Метод хорд: Корень не найден с заданной точностью функции.")
