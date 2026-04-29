@@ -1,0 +1,50 @@
+import math
+
+def main():
+    print("Вычисление интеграла ∫₀¹ e^(-x²) dx с помощью степенного ряда")
+    print("\nМатематическое обоснование:")
+    print("Используем разложение экспоненты в ряд Тейлора:")
+    print("    e^u = Σ_{n=0}^∞ u^n / n!")
+    print("Подставляем u = -x²:")
+    print("    e^(-x²) = Σ_{n=0}^∞ (-1)^n * x^(2n) / n!")
+    print("Интегрируем почленно на [0, 1]:")
+    print("    ∫₀¹ e^(-x²) dx = Σ_{n=0}^∞ (-1)^n / (n! * (2n+1))")
+    print("Это знакочередующийся ряд. Остаток по модулю меньше первого отброшенного члена.")
+    print(f"Требуемая точность: {1e-4:.1e}\n")
+
+    tol = 1e-4
+    total = 0.0
+    n = 0
+    term = 1.0
+    terms_used = 0
+
+    print("Вычисление членов ряда:")
+    print(f"{'n':>3} | {'Член ряда':>15} | {'Сумма':>15}")
+
+    while abs(term) >= tol:
+        total += term
+        terms_used += 1
+        print(f"{n:>3} | {term:>15.8f} | {total:>15.8f}")
+        n += 1
+        sign = 1 if n % 2 == 0 else -1
+        factorial_n = math.factorial(n)
+        denominator = factorial_n * (2 * n + 1)
+        term = sign / denominator
+
+    print(f"\n Результат: {total:.6f}")
+    print(f"Количество использованных членов ряда: {terms_used}")
+    print(f"Последний добавленный член: {abs(term * math.factorial(n) * (2*n+1)):.1e} (по модулю)")
+
+    from scipy.special import erf
+    exact_value = math.sqrt(math.pi) / 2 * erf(1)
+    error = abs(total - exact_value)
+    print(f"\n Точное значение (через erf): {exact_value:.8f}")
+    print(f"Ошибка вычисления: {error:.2e}")
+
+    if error < tol:
+        print(f" Точность {tol:.1e} достигнута!")
+    else:
+        print(f" Точность не достигнута! Ошибка = {error:.2e}")
+
+if __name__ == "__main__":
+    main()
