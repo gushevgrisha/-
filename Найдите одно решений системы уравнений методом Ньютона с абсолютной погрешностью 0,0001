@@ -1,0 +1,48 @@
+import numpy as np
+from scipy.optimize import fsolve 
+
+def system_F(X):
+    x, y = X
+    f1 = np.sin(x + y) - 1.5 * x * y
+    f2 = x**2 - y**2 - 0.75
+    return np.array([f1, f2])
+
+def jacobian(X):
+    x, y = X
+    J = np.array([
+        [np.cos(x + y) - 1.5 * y, np.cos(x + y) - 1.5 * x],
+        [2 * x, -2 * y]
+    ])
+    return J
+
+def newton_system(F, J, X0, tol=1e-4, max_iter=100):
+    X = np.array(X0, dtype=float)
+    for i in range(max_iter):
+        F_val = F(X)
+        J_val = J(X)
+        
+        det = np.linalg.det(J_val)
+        if abs(det) < 1e-12:
+            raise ValueError("Якобиан вырожден")
+        
+        dX = np.linalg.solve(J_val, -F_val)
+        X_new = X + dX
+        
+        if np.linalg.norm(dX) < tol:
+            print(f" Метод Ньютона для системы: корень ≈ ({X_new[0]:.6f}, {X_new[1]:.6f}), итераций: {i+1}")
+            return X_new
+        
+        X = X_new
+    
+    raise ValueError("Метод не сошелся за максимальное число итераций")
+
+print("\n\n=== Задание 3: Система уравнений ===")
+
+X0 = [1.0, 0.5]
+
+solution = newton_system(system_F, jacobian, X0)
+
+print(f"\nНайденное решение: x ≈ {solution[0]:.6f}, y ≈ {solution[1]:.6f}")
+
+check = system_F(solution)
+print(f"Проверка: F(x,y) = [{check[0]:.2e}, {check[1]:.2e}]")
